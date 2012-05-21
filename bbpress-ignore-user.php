@@ -4,7 +4,7 @@
  * Plugin URI: http://wordpress.org/extend/plugins/bbpress-ignore-user/
  * Description: Allow members of the forum to selectively have a user's posts and topics hidden from view.
  * Dependencies: bbpress/bbpress.php
- * Version: 0.1
+ * Version: 0.2
  * Author: Jason Schwarzenberger
  * Author URI: http://master5o1.com/
  */
