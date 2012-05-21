@@ -11,7 +11,7 @@
 /*  Copyright 2011  Jason Schwarzenberger  (email : jason@master5o1.com)
 
     This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License, version 2, as 
+    it under the terms of the GNU General Public License, version 2, as
     published by the Free Software Foundation.
 
     This program is distributed in the hope that it will be useful,
@@ -29,8 +29,7 @@ if ( !isset($_GET['show_ignored_users']) ) {
 	add_filter( 'bbp_has_replies', array('bbp_5o1_ignore_user', 'hide_ignored_replies'), 10, 2 );
 }
 
-add_action( 'wp_head', array('bbp_5o1_ignore_user', 'jquery_script') );
-
+add_action( 'wp_enqueue_scripts', array('bbp_5o1_ignore_user', 'jquery_script') );
 add_action( 'wp_ajax_bbp_5o1_unignore_user', array('bbp_5o1_ignore_user', 'ajax_unignore_user') );
 add_action( 'wp_ajax_bbp_5o1_ignore_user', array('bbp_5o1_ignore_user', 'ajax_ignore_user') );
 add_filter( 'bbp_get_reply_author_link', array('bbp_5o1_ignore_user', 'show_ignore_user_button'), 10, 2 );
@@ -39,17 +38,14 @@ add_action( 'bbp_template_notices', array('bbp_5o1_ignore_user', 'show_users_ign
 // Plugin class:
 class bbp_5o1_ignore_user {
 
-	// import jQuery and set up ajaxurl so that we can use this script.
-	// Is there a better, more API-based way?  Example:
 	function jquery_script() {
-		echo '<script type="text/javascript" src="'.site_url().'/wp-includes/js/jquery/jquery.js?ver=1.4.4"></script>';
-		echo '<script type="text/javascript">var IgnoreUser = { ajaxurl: "'.site_url().'/wp-admin/admin-ajax.php" };</script>';
+		wp_enqueue_script( 'jquery' );
+		wp_localize_script( 'jquery', 'IgnoreUser', array( 'ajaxurl' => site_url().'/wp-admin/admin-ajax.php' ) );
 	}
-	
+
 	function get_ignored_users($user_id = 0) {
-		global $bbp;
 		if ( empty($user_id) )
-			$user_id = $bbp->current_user->ID;
+			$user_id = bbp_get_current_user_id();
 		$raw = get_user_meta($user_id, 'bbp_5o1_ignored_users', true);
 		if ( empty($raw) )
 			return false;
@@ -62,7 +58,7 @@ class bbp_5o1_ignore_user {
 		}
 		return $ignored_users;
 	}
-	
+
 	function set_ignored_users($user_id, $ignored_users) {
 		$before = bbp_5o1_ignore_user::get_ignored_users($user_id);
 		if ( !empty($before) )
@@ -70,7 +66,7 @@ class bbp_5o1_ignore_user {
 		if ( empty($ignored_users) )
 			return;
 		$ignored_ids = "";
-		foreach ($ignored_users as $id => $user_login) {
+		foreach (array_keys($ignored_users) as $id) {
 			if ( !user_can($id, 'moderate') )
 				$ignored_ids .= "," . $id;
 		}
@@ -80,18 +76,17 @@ class bbp_5o1_ignore_user {
 	}
 
 	function hide_ignored_topics($have_posts, $topic_query) {
-		global $bbp;
+		$bbp = bbpress();
 		$ignored_users = bbp_5o1_ignore_user::get_ignored_users();
 		if ( empty($ignored_users) ) // Nothing to do.
 			return $have_posts;
-		if ( in_array( $bbp->displayed_user->ID, array_keys($ignored_users) ) ) // Don't hide a user's topics if they're on their profile archive.
+		if ( in_array( bbp_get_displayed_user_id(), array_keys($ignored_users) ) ) // Don't hide a user's topics if they're on their profile archive.
 			return $have_posts;
-		
+
 		$posts = $bbp->topic_query->posts;
 		$saved_posts = null;
 		$i = 0;
 		foreach ( $posts as $post ) {
-			$user = get_userdata($post->author_id);
 			if ( in_array($post->post_author, array_keys($ignored_users) ) ) {
 				$i++;
 				if ( user_can($post->post_author, 'moderate') ) {
@@ -102,26 +97,26 @@ class bbp_5o1_ignore_user {
 			}
 			$saved_posts[] = $post;
 		}
-		
+
 		$bbp->topic_query->post_count -= $i;
 		$bbp->topic_query->posts = $saved_posts;
-		
+
 		if ($i != 0) {
-			$code = "print '<div class=\"bbp-template-notice\">Hiding ".$i." topic".(($i!=1)?"s":"")." from users that you have chosen to ignore. <a href=\"?show_ignored_users\">Show all topics</a>.</div>';";
+			$code = "print '<div class=\"bbp-template-notice\"><p>Hiding ".$i." topic".(($i!=1)?"s":"")." from users that you have chosen to ignore. <a href=\"?show_ignored_users\">Show all topics</a>.</p></div>';";
 			add_action( 'bbp_template_before_topics_loop' , create_function('', $code) );
 		}
-		
+
 		return $have_posts;
 	}
 
 	function hide_ignored_replies($have_posts, $reply_query) {
-		global $bbp;
+		$bbp = bbpress();
 		$ignored_users = bbp_5o1_ignore_user::get_ignored_users();
 		if ( empty($ignored_users) ) // Nothing to do.
 			return $have_posts;
-		if ( in_array( $bbp->displayed_user->ID, array_keys($ignored_users) ) ) // Don't hide a user's replies if they're on their profile archive.
+		if ( in_array( bbp_get_displayed_user_id(), array_keys($ignored_users) ) ) // Don't hide a user's replies if they're on their profile archive.
 			return $have_posts;
-		
+
 		$posts = $bbp->reply_query->posts;
 		$saved_posts = null;
 		$i = 0;
@@ -136,35 +131,34 @@ class bbp_5o1_ignore_user {
 			}
 			$saved_posts[] = $post;
 		}
-		
+
 		$bbp->reply_query->post_count -= $i;
 		$bbp->reply_query->posts = $saved_posts;
-		
+
 		if ($i != 0) {
-			$code = "print '<div class=\"bbp-template-notice\">Hiding ".$i." repl".(($i!=1)?"ies":"y")." from users that you have chosen to ignore. <a href=\"?show_ignored_users\">Show all posts</a>.</div>';";
+			$code = "print '<div class=\"bbp-template-notice\"><p>Hiding ".$i." repl".(($i!=1)?"ies":"y")." from users that you have chosen to ignore. <a href=\"?show_ignored_users\">Show all posts</a>.</p></div>';";
 			add_action( 'bbp_template_before_replies_loop' , create_function('', $code) );
 		}
-		
+
 		return $have_posts;
 	}
-	
+
 	function show_users_ignore_list() {
-		global $bbp;
 		// User isn't supposed to see this list here, so don't try showing it.
 		if ( !( bbp_is_user_home() || current_user_can( 'edit_users' ) ) )
 			return;
-		// We only want to show this on either the current_user's		or displayed_user's profiles.
-		if ( !in_array( substr(site_url(),0,strlen(site_url())-strlen(parse_url(site_url(),PHP_URL_PATH))) . $_SERVER['REQUEST_URI'] ,array ( bbp_get_user_profile_url($bbp->displayed_user->ID), bbp_get_user_profile_url($bbp->current_user->ID)) ) )
+		// We only want to show this on either the current_user's or displayed_user's profiles.
+		$displayed_user_id = bbp_get_displayed_user_id();
+		if ( !in_array( substr(site_url(),0,strlen(site_url())-strlen(parse_url(site_url(),PHP_URL_PATH))) . $_SERVER['REQUEST_URI'] ,array ( bbp_get_user_profile_url($displayed_user_id), bbp_get_user_profile_url(bbp_get_current_user_id())) ) )
 			return;
-		$ignored_users = bbp_5o1_ignore_user::get_ignored_users($bbp->displayed_user->ID);
+		$ignored_users = bbp_5o1_ignore_user::get_ignored_users($displayed_user_id);
 		// User doesn't have any usernames in the list, so don't show it.
 		if ( empty($ignored_users) )
 			return;
-		$displayed_user_id = $bbp->displayed_user->ID;
-		?><table class="profile-fields zebra"> 
-			<tr> 
-				<td class="label">Ignored Users List</td> 
-				<td class="data"><? 
+		?><table class="profile-fields zebra">
+			<tr>
+				<td class="label">Ignored Users List</td>
+				<td class="data"><?
 				foreach ($ignored_users as $user_id => $user_login) :
 				$ajax = "jQuery.post(IgnoreUser.ajaxurl,{'action':'bbp_5o1_unignore_user','data':'delete ".$user_id.";user_id ".$displayed_user_id."'},function(response){if (response){user=document.getElementById('ignored-user-".$user_id."');user.parentNode.removeChild(user);}});";
 				?>
@@ -176,10 +170,9 @@ class bbp_5o1_ignore_user {
 			</tr>
 		</table><?php
 	}
-	
-	function show_ignore_user_button($author_link, $args) {
-		global $bbp;
-		$user_id = $bbp->current_user->ID;
+
+	function show_ignore_user_button($author_link) {
+		$user_id = bbp_get_current_user_id();
 		$ignored_users = bbp_5o1_ignore_user::get_ignored_users($user_id);
 		$author_id = bbp_get_reply_author_id();
 		$reply_id = bbp_get_reply_id();
@@ -187,7 +180,7 @@ class bbp_5o1_ignore_user {
 		// or if the reply author is the current user,
 		// or if the reply author can moderate the forum,
 		// then we don't show the link.
-		if ( !is_user_logged_in() || empty($reply_id) || $user_id == $author_id || user_can($author_id, 'moderate') )
+		if ( !is_user_logged_in() || empty($reply_id) || $user_id == $author_id || user_can($author_id, 'moderate') || ( !bbp_is_single_topic() && !bbp_is_single_reply() ) )
 			return $author_link;
 		$elm_id = "ignore-user-".$author_id."-".$reply_id;
 		$ajax = "jQuery.post(IgnoreUser.ajaxurl,{'action':'bbp_5o1_ignore_user','data':'ignore ".$author_id.";user_id ".$user_id."'},function(response){if (response=='true'){elm=document.getElementById('".$elm_id."');elm.parentNode.removeChild(elm);}});";
@@ -196,10 +189,10 @@ class bbp_5o1_ignore_user {
 			$ajax = "jQuery.post(IgnoreUser.ajaxurl,{'action':'bbp_5o1_unignore_user','data':'delete ".$author_id.";user_id ".$user_id."'},function(response){if (response=='true'){elm=document.getElementById('".$elm_id."');elm.parentNode.removeChild(elm);}});";
 			$label = "Unignore User";
 		}
-		$link .= '<a style="cursor: pointer;" id="'.$elm_id.'" onclick="'.$ajax.'">'.$label.'</a>';
+		$link = '<div class="bbpiu-ignore-link"><a style="cursor: pointer;" id="'.$elm_id.'" onclick="'.$ajax.'">'.$label.'</a></div>';
 		return $author_link . '<br />' . $link;
 	}
-	
+
 	// The following two functions are probably a mess that should be cleaned up later.
 	function ajax_unignore_user() {
 		// data is a string like: 'delete 1;user_id 2'
@@ -237,7 +230,7 @@ class bbp_5o1_ignore_user {
 		}
 		die($response);
 	}
-	
+
 	function ajax_ignore_user() {
 		// data is a string like: 'ignore 1;user_id 2'
 		// meaning add the user with id=1 to user=2's ignore list.
@@ -262,7 +255,7 @@ class bbp_5o1_ignore_user {
 			}
 			if ( empty($ignored_users) || !in_array($command['ignore'], array_keys($ignored_users) ) ) {
 				$user = get_userdata($command['ignore']);
-				if ( !empty($user)) 
+				if ( !empty($user))
 					$ignored_users[$user->ID] = $user->user_login;
 			}
 			if ( in_array($command['ignore'], array_keys($ignored_users)) )  {
@@ -272,6 +265,6 @@ class bbp_5o1_ignore_user {
 		}
 		die($response);
 	}
-	
+
 }
  ?>

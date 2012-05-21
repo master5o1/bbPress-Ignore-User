@@ -2,9 +2,9 @@
 Contributors: master5o1
 Donate link: http://master5o1.com/donate/
 Tags: bbPress, bbPress 2.0, ignore user, block user, ignore, self-censorship, 5o1, master5o1
-Requires at least: 3.1 or higher
-Tested up to: 3.1.3
-Stable tag: 0.1
+Requires at least: WP 3.3 / bbP 2.1
+Tested up to: WP 3.4 / bbP 2.1
+Stable tag: 0.2
 
 Allow members of the forum to selectively have a user's posts and topics hidden from view.
 
@@ -21,8 +21,8 @@ Users who can moderate the forum cannot be ignored by any members and members ca
 == Installation ==
 
 1. Make sure you have bbPress 2.0 (or better) plugin activated.
-1. Upload `bbpress-ignore-users` folder to the `/wp-content/plugins/` directory
-1. Activate the plugin through the 'Plugins' menu in WordPress
+2. Upload `bbpress-ignore-users` folder to the `/wp-content/plugins/` directory
+3. Activate the plugin through the 'Plugins' menu in WordPress
 
 == Frequently Asked Questions ==
 
@@ -33,10 +33,14 @@ Answer
 == Screenshots ==
 
 1. Ignore/Unignore User link on the author side of a reply post.
-1. Topics hidden from listing.
-1. Ignore list can be maintained on the user's profile.
+2. Topics hidden from listing.
+3. Ignore list can be maintained on the user's profile.
 
 == Changelog ==
+
+= 0.2 =
+
+* Fixes some bugs.
 
 = 0.1 =
 
